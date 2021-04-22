@@ -1,6 +1,6 @@
 # Arithmetic sentence parser
 
-## Define Grammar
+## Grammar
 
 Let's start with a simple grammar for evaluating arithmetic expressions using multiplication and addition only as follows, 
 
@@ -61,7 +61,7 @@ number -> [0-9] { [0-9] }
 ```
 Source: https://en.wikipedia.org/wiki/Left_recursion
 
-The full grammar for an arithmetic expression using subtraction and division is as follows,
+Let's add negation as well. Then, the full grammar for an arithmetic expression using subtraction and division is as follows,
 
 ```
 Expression -> Term Expression'
@@ -70,8 +70,19 @@ Expression' -> + Term Expression'
 Term -> Factor Term'
 Term' -> * Factor Term'
         | / Factor Term'
-Factor -> ( Expression )  | number
+Factor -> - Factor | ( Expression )  | number
 number -> [0-9] { [0-9] }
 ```
 
+### Haskell implementation
 
+The data declaration follows from the definition,
+
+```haskell
+data Expr = Number Int 
+    | Add Expr Expr 
+    | Sub Expr Expr 
+    | Neg  Expr 
+    | Mult Expr Expr 
+    | Div Expr Expr deriving Show
+```
