@@ -1,4 +1,5 @@
 import Data.Char (isDigit)
+import Debug.Trace (trace)
 {- Grammar
 Expression -> Term Expression'
 Expression' -> + Term Expression'
@@ -6,8 +7,8 @@ Expression' -> + Term Expression'
 Term -> Factor Term'
 Term' -> * Factor Term'
         | / Factor Term'
-Factor -> - Factor | ( Expression )  | number
-number -> [0-9] { [0-9] }
+Factor -> - Factor | ( Expression )  | Number
+Number -> [0-9] { [0-9] }
 -}
 
 data Expr = Number Int 
@@ -31,12 +32,15 @@ parseExpr (x:xs) = case parseTerm (x:xs) of
     Right (expr, ys) -> Right (expr, ys)
     Left err -> Left err
 
-parseExprExt (lexpr, '+':xs) = case parseExpr xs of
-    Right (rexpr, ys) -> Right (Add lexpr rexpr, ys)
+parseExprExt (lexpr, '+':xs) = case parseTerm xs of
+    Right (rexpr, []) -> Right (Add lexpr rexpr, [])
+    Right (rexpr, ys) -> parseExprExt (Add lexpr rexpr, ys)
     Left err -> Left err
-parseExprExpt (lexpr, '-':xs) = case parseExpr xs of
-    Right (rexpr, ys) -> Right (Sub lexpr rexpr, ys)
+parseExprExt (lexpr, '-':xs) = case parseTerm xs of
+    Right (rexpr, []) -> Right (Sub lexpr rexpr, [])
+    Right (rexpr, ys) -> parseExprExt (Sub lexpr rexpr, ys)
     Left err -> Left err
+parseExprExt (expr, xs) = Right (expr, xs)
 
 parseTerm xs = case parseFactor xs of
     Right (lexpr, s@('*':ys)) -> parseTermExt (lexpr, s)
@@ -44,14 +48,18 @@ parseTerm xs = case parseFactor xs of
     Right (expr, ys) -> Right (expr, ys)
     Left err -> Left err
 
+--parseTermExt (expr, xs) | (trace $ show xs ++ show expr) False = undefined
 parseTermExt (lexpr, '*':[]) = Left "Expected expression after (*)"
-parseTermExt (lexpr, '*':xs) = case parseTerm xs of
-    Right (rexpr, ys) -> Right (Mult lexpr rexpr, ys)
+parseTermExt (lexpr, '*':xs) = case parseFactor xs of
+    Right (rexpr, []) -> Right (Mult lexpr rexpr, [])
+    Right (rexpr, ys) -> parseTermExt (Mult lexpr rexpr, ys)
     Left err -> Left err
 parseTermExt (lexpr, '/':[]) = Left "Expected expression after (/)"
-parseTermExt (lexpr, '/':xs) = case parseTerm xs of
-    Right (rexpr, ys) -> Right (Div lexpr rexpr, ys)
+parseTermExt (lexpr, '/':xs) = case parseFactor xs of
+    Right (rexpr, []) -> Right (Div lexpr rexpr, [])
+    Right (rexpr, ys) -> parseTermExt (Div lexpr rexpr, ys)
     Left err -> Left err
+parseTermExt (expr, xs) = Right (expr, xs)
 
 parseFactor (' ':xs) = parseFactor xs
 parseFactor ('\r':xs) = parseFactor xs
@@ -84,3 +92,8 @@ eval (Mult lexpr rexpr) = eval lexpr * eval rexpr
 eval (Div lexpr rexpr) = eval lexpr `div` eval rexpr
 eval (Neg expr) = negate (eval expr)
 eval (Number x) = x
+
+-- Examples
+ex0 = eval (parse "2+5*3") == 2+5*3
+ex1 = eval (parse "(3*5)-4") == (3*5)-4
+ex3 = eval (parse "3*5-5-7*3+10") == 3*5-5-7*3+10
