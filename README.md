@@ -74,7 +74,7 @@ Factor -> - Factor | ( Expression )  | number
 number -> [0-9] { [0-9] }
 ```
 
-### Haskell implementation
+### Haskell implementation (`ParserBasic.hs`)
 
 The data declaration follows from the definition,
 
@@ -104,3 +104,19 @@ parseExpr (x:xs) = case parseTerm (x:xs) of
 ```
 
 Once, the term is extracted the proper symbol is consumed, `+` or `-`, and we look for another term. The reason we need extension `parseExprExt` is to start with a left expression and continually form a binary tree that represents an order of operations.
+
+## Add functions (`ParserFunc.hs`)
+
+We can add the following rules to to represent a function expression. `Factor` is modified to have `name` production for a variable name.
+```
+Function -> name ( Arguments ) = Expression
+Arguments -> Expression {, Expression}
+Factor -> - Factor | ( Expression )  | number | name
+name -> [a-Z] { [a-Z'] }
+```
+
+We simply define function expression as
+```hs
+data FuncDef = FuncDef String [String] Expr
+data FuncExpr = FuncExpr name [Expr]
+```
