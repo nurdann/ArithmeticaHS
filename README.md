@@ -86,3 +86,21 @@ data Expr = Number Int
     | Mult Expr Expr 
     | Div Expr Expr deriving Show
 ```
+
+This allows us to account for any possible production of grammar.
+
+We will use `Either a b` data type that allows to return `Right b` for correct parsing of a text or `Left a` for an error message.
+
+Haskell makes it intuitive to apply rules based on a grammar. In addition, we use a tuple `(Expr, String)` to keep track of parsed symbols and text to be parsed.
+
+For example, the first rule that we need to apply is for `Term` in `Expression -> Term Expression'`,
+
+```hs
+parseExpr (x:xs) = case parseTerm (x:xs) of
+    Right (lexpr, s@('+':ys)) -> parseExprExt (lexpr, s)
+    Right (lexpr, s@('-':ys)) -> parseExprExt (lexpr, s)
+    Right (expr, ys) -> Right (expr, ys)
+    Left err -> Left err
+```
+
+Once, the term is extracted the proper symbol is consumed, `+` or `-`, and we look for another term. The reason we need extension `parseExprExt` is to start with a left expression and continually form a binary tree that represents an order of operations.
