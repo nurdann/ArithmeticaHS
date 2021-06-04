@@ -14,6 +14,8 @@ number -> [0-9] { [0-9] }
 
 where capitalized words indicate a non-terminal expression and non-capitalized indicate terminal symbols.
 
+**Note**: Curly braces indicate optional rule
+
 However, the above grammar is not adequate because it does not prioritize the order of operations for the multiplication. We can modify the grammar so that whenever `+` operator is encountered, we look for multiplication operator.
 
 ```
@@ -74,7 +76,7 @@ Factor -> - Factor | ( Expression )  | number
 number -> [0-9] { [0-9] }
 ```
 
-### Haskell implementation (`ParserBasic.hs`)
+### Haskell implementation
 
 The data declaration follows from the definition,
 
@@ -105,14 +107,12 @@ parseExpr (x:xs) = case parseTerm (x:xs) of
 
 Once, the term is extracted the proper symbol is consumed, `+` or `-`, and we look for another term. The reason we need extension `parseExprExt` is to start with a left expression and continually form a binary tree that represents an order of operations.
 
-## Add functions (`ParserFunc.hs`)
+## Add functions
 
-We can add the following rules to to represent a function expression. `Factor` is modified to have `name` production for a variable name. We also need to add `FunctionExpression` as one of the productions of `Factor`, for cases such as `f(g(3) + 5)`.
+We can add the following rules to to represent a function expression. `Factor` is modified to have `name` production for a variable name. We also need to add `FunctionExpression` as one of the productions of `Factor`, for cases such as `f(g(3) + 5)`. For the function definition, arguments can be treated as a list of strings but for function exressions, such as `f(3+3)`, we need to treat them as list of expressions.
 
 ```
-Function -> name ( name {, name } ) = Expression
-FunctionExpression -> name ( { Argument {, Argument } } )
-Argument -> Expression | FunctionExpression
+FunctionDef -> name ( name {, name } ) = Expression
 
 Expression -> Term Expression'
 Expression' -> + Term Expression'
@@ -123,13 +123,14 @@ Term' -> * Factor Term'
         | / Factor Term'
 
 Factor -> - Factor | ( Expression )  | number | name | FunctionExpression
+
+FunctionExpression -> name ( { Expression {, Expression } } )
+
 name -> [a-Z] { [a-Z'] }
 number -> [0-9] { [0-9] }
 ```
 
-**Note**: Curly braces indicate optional rule
-
-We define function definition and expression to differentiate between creating a function, e.g. `f(a) = a + 3`, and evaluating it, e.g. `f(10)` or `f(f(10))`.
+We define function definition and expression to differentiate between creating a function, e.g. `f(a) = a + 3`, and for evaluating it, e.g. `f(10)` or `f(f(10))`.
 
 ```hs
 data FuncDef = FuncDef String [String] Expr deriving Show
@@ -145,6 +146,8 @@ data Expr = Number Int
 ```
 
 The challenge is now to disambiguate between `name` and `FunctionExpression` because both start with an alphabetic letter. We can determine that by parsing for `FunctionExpression` and if unsuccessful backtract.
+
+To evaluate a function expression, we form a map where an argument in the function definition, that is `FuncDef "fname" ["arg1", ...] ...`, is mapped to an evaluted argument from function expression, that is `FuncExpr "fname" [3, ...]`. 
 
 Use `parseDef` or `parse` so that whitespace is eliminated, otherwise other functions will error out.
 
@@ -163,6 +166,8 @@ main = do
     let up = map toUpper text :: String
     putStrLn (up :: String)
 ```
+
+The `handler` function recursively calls itself to prompt user for an expression. In addition, each time a function is defined it is added to a function map.
 
 We can run main inside the interpreter as follows
 ```
