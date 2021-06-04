@@ -107,16 +107,83 @@ Once, the term is extracted the proper symbol is consumed, `+` or `-`, and we lo
 
 ## Add functions (`ParserFunc.hs`)
 
-We can add the following rules to to represent a function expression. `Factor` is modified to have `name` production for a variable name.
+We can add the following rules to to represent a function expression. `Factor` is modified to have `name` production for a variable name. We also need to add `FunctionExpression` as one of the productions of `Factor`, for cases such as `f(g(3) + 5)`.
+
 ```
-Function -> name ( Arguments ) = Expression
-Arguments -> Expression {, Expression}
-Factor -> - Factor | ( Expression )  | number | name
+Function -> name ( name {, name } ) = Expression
+FunctionExpression -> name ( { Argument {, Argument } } )
+Argument -> Expression | FunctionExpression
+
+Expression -> Term Expression'
+Expression' -> + Term Expression'
+            | - Term Expression'
+
+Term -> Factor Term'
+Term' -> * Factor Term'
+        | / Factor Term'
+
+Factor -> - Factor | ( Expression )  | number | name | FunctionExpression
 name -> [a-Z] { [a-Z'] }
+number -> [0-9] { [0-9] }
 ```
 
-We simply define function expression as
+**Note**: Curly braces indicate optional rule
+
+We define function definition and expression to differentiate between creating a function, e.g. `f(a) = a + 3`, and evaluating it, e.g. `f(10)` or `f(f(10))`.
+
 ```hs
-data FuncDef = FuncDef String [String] Expr
-data FuncExpr = FuncExpr name [Expr]
+data FuncDef = FuncDef String [String] Expr deriving Show
+
+data Expr = Number Int 
+    | Var String
+    | FuncExpr String [Expr] 
+    | Add Expr Expr 
+    | Sub Expr Expr 
+    | Neg  Expr 
+    | Mult Expr Expr 
+    | Div Expr Expr deriving Show
+```
+
+The challenge is now to disambiguate between `name` and `FunctionExpression` because both start with an alphabetic letter. We can determine that by parsing for `FunctionExpression` and if unsuccessful backtract.
+
+Use `parseDef` or `parse` so that whitespace is eliminated, otherwise other functions will error out.
+
+Currently recursive functions will not evaluate because it will recursively call the function itself, e.g. 
+
+```
+> parseDef "f(a) = f(a-1)"
+FuncDef "f" ["a"] (FuncExpr "f" [Sub (Var "a") (Number 1)])
+```
+
+Lastly, we add `main` function so that expressions can evaulated. We assign using `let` expression, e.g. `let a = parse text`, so that we can use `IO String` as `String` in our functions. For example,
+
+```hs
+main = do
+    text <- getLine :: IO String
+    let up = map toUpper text :: String
+    putStrLn (up :: String)
+```
+
+We can run main inside the interpreter as follows
+```
+*Main> :main
+"Enter expression, e.g. 3+3 or f(a)=a+2 or f(3)"
+Press Ctrl-C to quit
+λ> f(a) = a * 5
+λ> f(10)
+50
+λ> ^CInterrupted.
+```
+
+Or compile using `ghc`
+
+```
+$ ghc -O2 Parser.hs
+$ ./Parser
+"Enter expression, e.g. 3+3 or f(a)=a+2 or f(3)"
+Press Ctrl-C to quit
+λ> f(a) = a + 3
+λ> f(10)
+13
+λ> ^C
 ```
