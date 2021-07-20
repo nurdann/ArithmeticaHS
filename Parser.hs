@@ -3,27 +3,6 @@ import Debug.Trace (trace)
 import qualified Data.Map as Map
 import Data.Maybe (fromMaybe)
 import System.IO (hFlush, stdout)
-{- 
--- Base Grammar --
-
-Expression -> Term Expression'
-Expression' -> + Term Expression'
-            | - Term Expression'
-Term -> Factor Term'
-Term' -> * Factor Term'
-        | / Factor Term'
-Factor -> - Factor | ( Expression )  | Number
-Number -> [0-9] { [0-9] }
-
-
-data Expr = Number Int 
-    | Var String
-    | Add Expr Expr 
-    | Sub Expr Expr 
-    | Neg  Expr 
-    | Mult Expr Expr 
-    | Div Expr Expr deriving Show
--}
 
 {- 
 -- Grammar with function expression --
@@ -45,6 +24,37 @@ name -> [a-Z] { [a-Z'] }
 number -> [0-9] { [0-9] }
 -}
 
+-- Tokenizer
+data Token = Name String 
+    | Digits String
+    | Lparen
+    | Rparen
+    | Plus
+    | Minus
+    | Asterisk
+    | Slash
+    | Comma
+    | Equal 
+    deriving Show
+
+tokenize :: String -> [Token] -> Either String [Token]
+tokenize [] acc = Right (reverse acc)
+tokenize (' ':xs) acc = tokenize xs acc
+tokenize ('\t':xs) acc = tokenize xs acc
+tokenize ('\r':xs) acc = tokenize xs acc
+tokenize ('\n':xs) acc = tokenize xs acc
+tokenize ('+':xs) acc = tokenize xs (Plus : acc)
+tokenize ('-':xs) acc = tokenize xs (Minus : acc)
+tokenize ('*':xs) acc = tokenize xs (Asterisk : acc)
+tokenize ('/':xs) acc = tokenize xs (Slash : acc)
+tokenize (',':xs) acc = tokenize xs (Comma : acc)
+tokenize ('=':xs) acc = tokenize xs (Equal : acc)
+tokenize ('(':xs) acc = tokenize xs (Lparen : acc)
+tokenize (')':xs) acc = tokenize xs (Rparen : acc)
+tokenize s@(x:xs) acc
+    | let (name, rest) = span isAlphaNum s, isAlpha x = tokenize rest (Name name : acc)
+    | let (digits, rest) = span isDigit s, isDigit x = tokenize rest (Digits digits : acc)
+    | otherwise = Left ("Unexpected token " ++ [x] ++ " after " ++ show (take 1 acc))
 
 -- Extend with functions
 
